@@ -3,7 +3,7 @@ import random
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox, QSpinBox, 
-                             QProgressBar, QScrollArea, QCheckBox, QGridLayout, QComboBox)
+                             QProgressBar, QScrollArea, QCheckBox, QGridLayout, QRadioButton, QGroupBox)
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import barcode
@@ -21,11 +21,11 @@ class BarcodeGeneratorThread(QThread):
         self.count_6_to_9 = count_6_to_9
         self.prefix = prefix
         self.save_path = save_path
-        self.barcode_format = barcode_format  # Store the barcode format
+        self.barcode_format = barcode_format
 
     def generate_barcodes(self, count, first_digit_range):
         barcodes = []
-        code_format = barcode.get_barcode_class(self.barcode_format)  # Use the selected barcode format
+        code_format = barcode.get_barcode_class(self.barcode_format)
         
         for _ in range(count):
             ean = random.choice(ean_list)
@@ -42,16 +42,17 @@ class BarcodeGeneratorThread(QThread):
 
     def run(self):
         barcodes = []
+        total_count = self.count_1_to_5 + self.count_6_to_9
         
         # Generate barcodes for 1-5 range
         for barcode_data, progress in self.generate_barcodes(self.count_1_to_5, (1, 5)):
             barcodes.append(barcode_data)
-            self.progress.emit(progress)
+            self.progress.emit(int((len(barcodes) / total_count) * 100))
 
         # Generate barcodes for 6-9 range
         for barcode_data, progress in self.generate_barcodes(self.count_6_to_9, (6, 9)):
             barcodes.append(barcode_data)
-            self.progress.emit(progress)
+            self.progress.emit(int((len(barcodes) / total_count) * 100))
 
         self.finished.emit(barcodes)
 
@@ -63,27 +64,33 @@ class BarcodeGeneratorApp(QMainWindow):
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
-        self.layout = QVBoxLayout(main_widget)
-
-        # Barcode format selection
-        self.barcode_format_combo = QComboBox()
-        self.barcode_format_combo.addItems(["code128", "code39"])  # Add Code128 and Code39 options
-        self.layout.addWidget(QLabel("Formato do Código de Barras:"))
-        self.layout.addWidget(self.barcode_format_combo)
+        layout = QVBoxLayout(main_widget)
 
         # Input fields
-        self.count_1_to_5 = self.create_spin_box("Quantidade (1 a 5):", 0, 100)
-        self.count_6_to_9 = self.create_spin_box("Quantidade (6 a 9):", 0, 100)
+        self.count_1_to_5, self.count_6_to_9 = self.create_spin_boxes()
         self.prefix = self.create_line_edit("barcode_")
 
+        # Group box for barcode format selection
+        self.barcode_format_group = QGroupBox("Formato do Código de Barras")
+        self.barcode_format_layout = QHBoxLayout()
+
+        self.code128_radio = QRadioButton("Code 128")
+        self.code39_radio = QRadioButton("Code 39")
+        self.code128_radio.setChecked(True)  # Default selection
+
+        self.barcode_format_layout.addWidget(self.code128_radio)
+        self.barcode_format_layout.addWidget(self.code39_radio)
+        self.barcode_format_group.setLayout(self.barcode_format_layout)
+
+        layout.addWidget(self.barcode_format_group)
+
         input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Quantidade (1 a 5):"))
-        input_layout.addWidget(self.count_1_to_5)
-        input_layout.addWidget(QLabel("Quantidade (6 a 9):"))
-        input_layout.addWidget(self.count_6_to_9)
-        input_layout.addWidget(QLabel("Prefixo:"))
+        input_layout.addWidget(QLabel("Quantidade (1 a 5):"))  # Adiciona o rótulo
+        input_layout.addWidget(self.count_1_to_5)  # Adiciona o spin box
+        input_layout.addWidget(QLabel("Quantidade (6 a 9):"))  # Adiciona o rótulo
+        input_layout.addWidget(self.count_6_to_9)  # Adiciona o spin box
         input_layout.addWidget(self.prefix)
-        self.layout.addLayout(input_layout)
+        layout.addLayout(input_layout)
 
         # Save path
         self.save_path = QLineEdit()
@@ -93,16 +100,16 @@ class BarcodeGeneratorApp(QMainWindow):
         browse_button = QPushButton("Escolher...")
         browse_button.clicked.connect(self.choose_directory)
         save_path_layout.addWidget(browse_button)
-        self.layout.addLayout(save_path_layout)
+        layout.addLayout(save_path_layout)
 
         # Generate button
         generate_button = QPushButton("Gerar Códigos de Barras")
         generate_button.clicked.connect(self.start_generation)
-        self.layout.addWidget(generate_button)
+        layout.addWidget(generate_button)
 
         # Progress bar
         self.progress_bar = QProgressBar()
-        self.layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_bar)
 
         # Preview area
         self.preview_area = QScrollArea()
@@ -111,24 +118,26 @@ class BarcodeGeneratorApp(QMainWindow):
         self.preview_widget.setLayout(self.preview_layout)
         self.preview_area.setWidget(self.preview_widget)
         self.preview_area.setWidgetResizable(True)
-        self.layout.addWidget(self.preview_area)
+        layout.addWidget(self.preview_area)
 
         # Action buttons
-        self.setup_action_buttons()
+        self.setup_action_buttons(layout)
 
         self.barcodes = []
 
-    def create_spin_box(self, label_text, min_value, max_value):
-        spin_box = QSpinBox()
-        spin_box.setRange(min_value, max_value)
-        return spin_box
+    def create_spin_boxes(self):
+        spin_box_1 = QSpinBox()
+        spin_box_1.setRange(0, 100)
+        spin_box_2 = QSpinBox()
+        spin_box_2.setRange(0, 100)
+        return spin_box_1, spin_box_2  # Retornar os spin boxes
 
     def create_line_edit(self, default_text):
         line_edit = QLineEdit()
         line_edit.setText(default_text)
         return line_edit
 
-    def setup_action_buttons(self):
+    def setup_action_buttons(self, layout):
         action_layout = QHBoxLayout()
         self.select_all_button = QPushButton("Selecionar Todos")
         self.select_all_button.clicked.connect(self.toggle_select_all)
@@ -146,7 +155,7 @@ class BarcodeGeneratorApp(QMainWindow):
         self.generate_again_button.clicked.connect(self.generate_again)
         action_layout.addWidget(self.generate_again_button)
 
-        self.layout.addLayout(action_layout)
+        layout.addLayout(action_layout)
 
     def choose_directory(self):
         folder_selected = QFileDialog.getExistingDirectory(self, "Selecionar Diretório")
@@ -162,7 +171,14 @@ class BarcodeGeneratorApp(QMainWindow):
         count_1_to_5 = self.count_1_to_5.value()
         count_6_to_9 = self.count_6_to_9.value()
         prefix = self.prefix.text()
-        barcode_format = self.barcode_format_combo.currentText()  # Get selected barcode format
+        
+        # Determinar o formato do código de barras selecionado
+        barcode_format = "code128" if self.code128_radio.isChecked() else "code39"
+
+        # Verificar se ao menos um código deve ser gerado
+        if count_1_to_5 == 0 and count_6_to_9 == 0:
+            QMessageBox.warning(self, "Erro", "Por favor, informe ao menos uma quantidade de códigos a serem gerados.")
+            return
 
         self.generator_thread = BarcodeGeneratorThread(count_1_to_5, count_6_to_9, prefix, save_path, barcode_format)
         self.generator_thread.progress.connect(self.update_progress)
@@ -238,7 +254,7 @@ class BarcodeGeneratorApp(QMainWindow):
         QMessageBox.information(self, "Sucesso", "Todos os códigos de barras salvos com sucesso!")
 
     def save_barcode_image(self, barcode_data, filename):
-        barcode_obj = barcode.get_barcode_class(self.barcode_format_combo.currentText())(barcode_data, writer=ImageWriter())
+        barcode_obj = barcode.get_barcode_class("code128" if self.code128_radio.isChecked() else "code39")(barcode_data, writer=ImageWriter())
         barcode_obj.save(filename)
 
     def generate_again(self):
