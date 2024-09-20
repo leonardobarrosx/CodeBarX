@@ -1,6 +1,6 @@
 # CODEBARX - A Custom CODE128 and CODE39 Barcode Generator 📦
 
-A user-friendly application to generate Code 128 barcodes with custom prefixes, designed to meet the needs of a personal project.
+A user-friendly application to generate barcodes with custom prefixes, designed to meet the needs of a personal project.
 
 ## Features ✨
 
