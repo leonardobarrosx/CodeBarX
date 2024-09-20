@@ -15,7 +15,7 @@ A user-friendly application to generate Code 128 barcodes with custom prefixes, 
 
 ## Preview 🖼️
 
-<img src="https://i.imgur.com/8s5FPai.png">
+<img src="https://i.imgur.com/8s5FPai.png" alt="CodeBarX Screenshot">
 
 ## Requirements ⚙️
 
@@ -38,7 +38,7 @@ A user-friendly application to generate Code 128 barcodes with custom prefixes, 
 3. Usage 🚀
     
     Run the application:
-        ```bash
+        ```
         python codebarx.py
         ```
 
