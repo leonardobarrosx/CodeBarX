@@ -1,10 +1,10 @@
-# CODEBARX - A Custom CODE128 Barcode Generator 📦
+# CODEBARX - A Custom CODE128 and CODE39 Barcode Generator 📦
 
 A user-friendly application to generate Code 128 barcodes with custom prefixes, designed to meet the needs of a personal project.
 
 ## Features ✨
 
-- Generate multiple Code 128 barcodes in ranges 1-5 and 6-9
+- Generate multiple CODE128 or CODE39 barcodes with $$ + 2 digits prefixes in ranges 1-5 and 6-9
 - Customizable file prefix for organized output
 - Modern, intuitive graphical user interface
 - Live preview of generated barcodes
