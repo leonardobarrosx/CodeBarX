@@ -59,7 +59,7 @@ This project is open source and available under the MIT License.
 Contributions, issues, and feature requests are welcome. Feel free to check the issues page if you want to contribute.
 
 ## Author ✍️
-Leonardo Barros - [LinkedIn](https://www.linkedin.com/in/leonadobarrosx)
+Leonardo Barros - [LinkedIn](https://www.linkedin.com/in/leonadobarrosx/)
 
 ## Acknowledgments 🙏
 Thanks to the python-barcode library for barcode generation
