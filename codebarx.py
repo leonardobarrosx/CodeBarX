@@ -3,7 +3,7 @@ import random
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox, QSpinBox, 
-                             QProgressBar, QScrollArea, QCheckBox, QGridLayout)
+                             QProgressBar, QScrollArea, QCheckBox, QGridLayout, QComboBox)
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import barcode
@@ -15,16 +15,17 @@ class BarcodeGeneratorThread(QThread):
     progress = pyqtSignal(int)
     finished = pyqtSignal(list)
 
-    def __init__(self, count_1_to_5, count_6_to_9, prefix, save_path):
+    def __init__(self, count_1_to_5, count_6_to_9, prefix, save_path, barcode_format):
         super().__init__()
         self.count_1_to_5 = count_1_to_5
         self.count_6_to_9 = count_6_to_9
         self.prefix = prefix
         self.save_path = save_path
+        self.barcode_format = barcode_format  # Store the barcode format
 
     def generate_barcodes(self, count, first_digit_range):
         barcodes = []
-        code_format = barcode.get_barcode_class('code128')
+        code_format = barcode.get_barcode_class(self.barcode_format)  # Use the selected barcode format
         
         for _ in range(count):
             ean = random.choice(ean_list)
@@ -62,7 +63,13 @@ class BarcodeGeneratorApp(QMainWindow):
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
-        self.layout = QVBoxLayout(main_widget)  # Store the layout reference for later use
+        self.layout = QVBoxLayout(main_widget)
+
+        # Barcode format selection
+        self.barcode_format_combo = QComboBox()
+        self.barcode_format_combo.addItems(["code128", "code39"])  # Add Code128 and Code39 options
+        self.layout.addWidget(QLabel("Formato do Código de Barras:"))
+        self.layout.addWidget(self.barcode_format_combo)
 
         # Input fields
         self.count_1_to_5 = self.create_spin_box("Quantidade (1 a 5):", 0, 100)
@@ -155,8 +162,9 @@ class BarcodeGeneratorApp(QMainWindow):
         count_1_to_5 = self.count_1_to_5.value()
         count_6_to_9 = self.count_6_to_9.value()
         prefix = self.prefix.text()
+        barcode_format = self.barcode_format_combo.currentText()  # Get selected barcode format
 
-        self.generator_thread = BarcodeGeneratorThread(count_1_to_5, count_6_to_9, prefix, save_path)
+        self.generator_thread = BarcodeGeneratorThread(count_1_to_5, count_6_to_9, prefix, save_path, barcode_format)
         self.generator_thread.progress.connect(self.update_progress)
         self.generator_thread.finished.connect(self.generation_finished)
         self.generator_thread.start()
@@ -230,7 +238,7 @@ class BarcodeGeneratorApp(QMainWindow):
         QMessageBox.information(self, "Sucesso", "Todos os códigos de barras salvos com sucesso!")
 
     def save_barcode_image(self, barcode_data, filename):
-        barcode_obj = barcode.get_barcode_class('code128')(barcode_data, writer=ImageWriter())
+        barcode_obj = barcode.get_barcode_class(self.barcode_format_combo.currentText())(barcode_data, writer=ImageWriter())
         barcode_obj.save(filename)
 
     def generate_again(self):
