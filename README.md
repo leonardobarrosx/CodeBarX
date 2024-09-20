@@ -40,6 +40,7 @@ A user-friendly application to generate Code 128 barcodes with custom prefixes, 
     Run the application:
         ```bash
         python codebarx.py
+        ```
 
     Enter the quantity of barcodes needed for each range (1-5 and 6-9)
     
