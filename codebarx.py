@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import barcode
 from barcode.writer import ImageWriter
 from io import BytesIO
-from ean_list import ean_list  # Importar a lista de EANs
+from ean_list import *  # Importar a lista de EANs
 
 class BarcodeGeneratorThread(QThread):
     progress = pyqtSignal(int)
