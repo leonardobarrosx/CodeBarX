@@ -1,6 +1,6 @@
 import sys
-import os
 import random
+import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QLineEdit, QPushButton, QFileDialog, QMessageBox, QSpinBox, 
                              QProgressBar, QScrollArea, QCheckBox, QGridLayout)
@@ -22,15 +22,14 @@ class BarcodeGeneratorThread(QThread):
         self.prefix = prefix
         self.save_path = save_path
 
-    def run(self):
+    def generate_barcodes(self, count, first_digit_range):
         barcodes = []
-        total = self.count_1_to_5 + self.count_6_to_9
         code_format = barcode.get_barcode_class('code128')
-
-        for i in range(total):
+        
+        for _ in range(count):
             ean = random.choice(ean_list)
-            first_digit = random.randint(1, 5)
-            second_digit = random.randint(6, 9)
+            first_digit = random.randint(*first_digit_range)
+            second_digit = random.randint(*first_digit_range)
             barcode_data = f"$${first_digit}{second_digit}{ean}"
 
             buffer = BytesIO()
@@ -38,7 +37,20 @@ class BarcodeGeneratorThread(QThread):
             barcode_obj.write(buffer)
             barcodes.append((barcode_data, ean, buffer.getvalue()))
 
-            self.progress.emit(int((i + 1) / total * 100))
+            yield barcodes[-1], int((len(barcodes) / (self.count_1_to_5 + self.count_6_to_9)) * 100)
+
+    def run(self):
+        barcodes = []
+        
+        # Generate barcodes for 1-5 range
+        for barcode_data, progress in self.generate_barcodes(self.count_1_to_5, (1, 5)):
+            barcodes.append(barcode_data)
+            self.progress.emit(progress)
+
+        # Generate barcodes for 6-9 range
+        for barcode_data, progress in self.generate_barcodes(self.count_6_to_9, (6, 9)):
+            barcodes.append(barcode_data)
+            self.progress.emit(progress)
 
         self.finished.emit(barcodes)
 
@@ -50,57 +62,66 @@ class BarcodeGeneratorApp(QMainWindow):
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
-        layout = QVBoxLayout()
-        main_widget.setLayout(layout)
+        self.layout = QVBoxLayout(main_widget)  # Store the layout reference for later use
 
         # Input fields
-        input_layout = QHBoxLayout()
-        self.count_1_to_5 = QSpinBox()
-        self.count_1_to_5.setRange(0, 100)
-        self.count_6_to_9 = QSpinBox()
-        self.count_6_to_9.setRange(0, 100)
-        self.prefix = QLineEdit()
-        self.prefix.setText("barcode_")
+        self.count_1_to_5 = self.create_spin_box("Quantidade (1 a 5):", 0, 100)
+        self.count_6_to_9 = self.create_spin_box("Quantidade (6 a 9):", 0, 100)
+        self.prefix = self.create_line_edit("barcode_")
 
+        input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("Quantidade (1 a 5):"))
         input_layout.addWidget(self.count_1_to_5)
         input_layout.addWidget(QLabel("Quantidade (6 a 9):"))
         input_layout.addWidget(self.count_6_to_9)
         input_layout.addWidget(QLabel("Prefixo:"))
         input_layout.addWidget(self.prefix)
-
-        layout.addLayout(input_layout)
+        self.layout.addLayout(input_layout)
 
         # Save path
-        save_path_layout = QHBoxLayout()
         self.save_path = QLineEdit()
+        save_path_layout = QHBoxLayout()
         save_path_layout.addWidget(QLabel("Diretório para salvar:"))
         save_path_layout.addWidget(self.save_path)
         browse_button = QPushButton("Escolher...")
         browse_button.clicked.connect(self.choose_directory)
         save_path_layout.addWidget(browse_button)
-
-        layout.addLayout(save_path_layout)
+        self.layout.addLayout(save_path_layout)
 
         # Generate button
         generate_button = QPushButton("Gerar Códigos de Barras")
         generate_button.clicked.connect(self.start_generation)
-        layout.addWidget(generate_button)
+        self.layout.addWidget(generate_button)
 
         # Progress bar
         self.progress_bar = QProgressBar()
-        layout.addWidget(self.progress_bar)
+        self.layout.addWidget(self.progress_bar)
 
-        # Preview area (Grid Layout for gallery-like display)
+        # Preview area
         self.preview_area = QScrollArea()
         self.preview_layout = QGridLayout()
         self.preview_widget = QWidget()
         self.preview_widget.setLayout(self.preview_layout)
         self.preview_area.setWidget(self.preview_widget)
         self.preview_area.setWidgetResizable(True)
-        layout.addWidget(self.preview_area)
+        self.layout.addWidget(self.preview_area)
 
         # Action buttons
+        self.setup_action_buttons()
+
+        self.barcodes = []
+
+    def create_spin_box(self, label_text, min_value, max_value):
+        spin_box = QSpinBox()
+        spin_box.setRange(min_value, max_value)
+        return spin_box
+
+    def create_line_edit(self, default_text):
+        line_edit = QLineEdit()
+        line_edit.setText(default_text)
+        return line_edit
+
+    def setup_action_buttons(self):
         action_layout = QHBoxLayout()
         self.select_all_button = QPushButton("Selecionar Todos")
         self.select_all_button.clicked.connect(self.toggle_select_all)
@@ -118,10 +139,7 @@ class BarcodeGeneratorApp(QMainWindow):
         self.generate_again_button.clicked.connect(self.generate_again)
         action_layout.addWidget(self.generate_again_button)
 
-        layout.addLayout(action_layout)
-
-        # Clear preview on start
-        self.barcodes = []
+        self.layout.addLayout(action_layout)
 
     def choose_directory(self):
         folder_selected = QFileDialog.getExistingDirectory(self, "Selecionar Diretório")
@@ -152,30 +170,26 @@ class BarcodeGeneratorApp(QMainWindow):
         self.update_preview(barcodes)
 
     def update_preview(self, barcodes):
-        # Clear existing previews
-        for i in reversed(range(self.preview_layout.count())): 
-            self.preview_layout.itemAt(i).widget().setParent(None)
-
-        # Add new previews
+        self.clear_preview()
         for i, (barcode_data, ean, image_data) in enumerate(barcodes):
             hbox = QHBoxLayout()
             label = QLabel(f"Barcode: {barcode_data} - EAN: {ean}")
 
             pixmap = QPixmap()
             pixmap.loadFromData(image_data)
-            scaled_pixmap = pixmap.scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio)  # Ajuste de tamanho da imagem
+            scaled_pixmap = pixmap.scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio)
             label.setPixmap(scaled_pixmap)
 
             hbox.addWidget(label)
-
             checkbox = QCheckBox()
             hbox.addWidget(checkbox)
-            self.preview_layout.addLayout(hbox, i // 4, i % 4)  # Grid layout for gallery
-
-        # Refresh the widget layout
-        self.preview_widget.setLayout(self.preview_layout)
+            self.preview_layout.addLayout(hbox, i // 4, i % 4)
 
         self.update_select_all_button()
+
+    def clear_preview(self):
+        for i in reversed(range(self.preview_layout.count())):
+            self.preview_layout.itemAt(i).widget().setParent(None)
 
     def toggle_select_all(self):
         all_selected = all(self.preview_layout.itemAt(i).layout().itemAt(1).widget().isChecked() for i in range(self.preview_layout.count()))
@@ -202,24 +216,26 @@ class BarcodeGeneratorApp(QMainWindow):
             checkbox = layout.itemAt(1).widget()
             if checkbox.isChecked():
                 barcode_data, ean = self.barcodes[i][:2]
-                filename = os.path.join(save_path, f'{self.prefix.text()}{i+1}_{barcode_data}.png')
-                barcode_obj = barcode.get_barcode_class('code128')(barcode_data, writer=ImageWriter())
-                barcode_obj.save(filename)
+                filename = os.path.join(save_path, f'{self.prefix.text()}{i + 1}_{barcode_data}.png')
+                self.save_barcode_image(barcode_data, filename)
+
         QMessageBox.information(self, "Sucesso", "Códigos de barras selecionados salvos com sucesso!")
 
     def save_all(self):
         save_path = self.save_path.text()
         for i, (barcode_data, ean, _) in enumerate(self.barcodes):
-            filename = os.path.join(save_path, f'{self.prefix.text()}{i+1}_{barcode_data}.png')
-            barcode_obj = barcode.get_barcode_class('code128')(barcode_data, writer=ImageWriter())
-            barcode_obj.save(filename)
+            filename = os.path.join(save_path, f'{self.prefix.text()}{i + 1}_{barcode_data}.png')
+            self.save_barcode_image(barcode_data, filename)
+
         QMessageBox.information(self, "Sucesso", "Todos os códigos de barras salvos com sucesso!")
 
+    def save_barcode_image(self, barcode_data, filename):
+        barcode_obj = barcode.get_barcode_class('code128')(barcode_data, writer=ImageWriter())
+        barcode_obj.save(filename)
+
     def generate_again(self):
-        # Limpar pré-visualização e dados
         self.barcodes.clear()
-        for i in reversed(range(self.preview_layout.count())): 
-            self.preview_layout.itemAt(i).widget().setParent(None)
+        self.clear_preview()
         self.save_path.clear()
         self.count_1_to_5.setValue(0)
         self.count_6_to_9.setValue(0)
