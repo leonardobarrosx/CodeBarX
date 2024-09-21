@@ -64,6 +64,6 @@ Leonardo Barros - [LinkedIn](https://www.linkedin.com/in/leonardobarrosx/)
 ## Acknowledgments 🙏
 Thanks to the python-barcode library for barcode generation
 PyQt6 for providing the GUI framework
-vbnet for the Code 128 barcode generation algorithm
+vbnet for the barcode generation algorithm
 
 Feel free to adjust any parts as needed! If you need anything else, just let me know. I hope you find this useful!
